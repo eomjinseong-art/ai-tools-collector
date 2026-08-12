@@ -66,6 +66,7 @@ create table if not exists guidebook_sections (
   slug text not null unique,
   title text not null,
   content_markdown text not null,
+  source_video_ids uuid[] not null default '{}', -- videos.id this section was synthesized from
   sort_order int not null default 0,
   is_published boolean not null default true,
   created_at timestamptz not null default now(),

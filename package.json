@@ -6,6 +6,7 @@
   "description": "Daily YouTube collector + AI summarizer feeding the AI Tools Korea site via Supabase",
   "scripts": {
     "collect": "tsx src/collect.ts",
+    "guidebook": "tsx src/guidebook.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
