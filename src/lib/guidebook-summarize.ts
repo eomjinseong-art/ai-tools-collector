@@ -36,6 +36,43 @@ const SYSTEM_PROMPT = `너는 한국어 AI 툴 교육 사이트의 가이드북 
 - 반드시 아래 JSON 형식으로만 응답해 (설명, 마크다운 코드블록 없이 순수 JSON):
 {"sections": [{"title": "섹션 제목", "content_markdown": "마크다운 본문", "source_video_indexes": [0, 2]}]}`;
 
+function looksTruncated(raw: string): boolean {
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("{")) return true;
+  if (!trimmed.endsWith("}")) return true;
+  try {
+    JSON.parse(trimmed);
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+async function callClaude(userContent: string, maxTokens: number): Promise<{ raw: string; truncated: boolean }> {
+  const message = await anthropic().messages.create({
+    model: "claude-sonnet-5",
+    max_tokens: maxTokens,
+    system: SYSTEM_PROMPT,
+    messages: [{ role: "user", content: userContent }],
+  });
+
+  const textBlock = message.content.find((block) => block.type === "text");
+  const raw = textBlock && "text" in textBlock ? textBlock.text : "";
+  const truncated = message.stop_reason === "max_tokens" || looksTruncated(raw);
+  return { raw, truncated };
+}
+
+function parseSections(raw: string): GuidebookSectionDraft[] | null {
+  try {
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw) as { sections: GuidebookSectionDraft[] };
+    if (!Array.isArray(parsed.sections)) return [];
+    return parsed.sections.filter((s) => s.title && s.content_markdown);
+  } catch {
+    return null;
+  }
+}
+
 /** Low-frequency batch (~20 calls/run, one per category) — uses a stronger model since it needs to cluster/dedupe across videos. */
 export async function generateGuidebookSections(
   categoryName: string,
@@ -49,23 +86,17 @@ export async function generateGuidebookSections(
     ),
   ].join("\n\n");
 
-  const message = await anthropic().messages.create({
-    model: "claude-sonnet-5",
-    max_tokens: 3000,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userContent }],
-  });
-
-  const textBlock = message.content.find((block) => block.type === "text");
-  const raw = textBlock && "text" in textBlock ? textBlock.text : "";
-
-  try {
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw) as { sections: GuidebookSectionDraft[] };
-    if (!Array.isArray(parsed.sections)) return [];
-    return parsed.sections.filter((s) => s.title && s.content_markdown);
-  } catch (err) {
-    console.error("  가이드북 응답 파싱 실패:", err);
-    return [];
+  // First attempt at a generous token budget; if the model still ran out of
+  // room, retry once with even more headroom rather than dropping the section.
+  let { raw, truncated } = await callClaude(userContent, 4000);
+  if (truncated) {
+    console.warn(`  [${categoryName}] 가이드북 응답이 잘림, max_tokens 늘려 재시도`);
+    ({ raw, truncated } = await callClaude(userContent, 7000));
   }
+
+  const sections = parseSections(raw);
+  if (sections) return sections;
+
+  console.error(`  [${categoryName}] 가이드북 응답 파싱 실패, 이번 실행에서는 스킵:`, raw.slice(0, 200));
+  return [];
 }
