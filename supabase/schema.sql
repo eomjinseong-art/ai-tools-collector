@@ -14,6 +14,7 @@ create table if not exists categories (
   search_keywords text[] not null default '{}', -- YouTube search queries used by the collector
   is_trend boolean not null default false, -- true only for the trend category
   sort_order int not null default 0,
+  click_count bigint not null default 0, -- drives left-menu ordering in the 3-panel app
   icon_url text,
   created_at timestamptz not null default now()
 );
@@ -85,7 +86,11 @@ create index if not exists idx_guidebook_category on guidebook_sections(category
 create table if not exists ads (
   id uuid primary key default gen_random_uuid(),
   name text not null,
-  placement text not null check (placement in ('home_top','home_bottom','category_sidebar','video_inline','guidebook_footer')),
+  placement text not null check (placement in (
+    'home_top','home_bottom',
+    'category_sidebar','category_sidebar_1','category_sidebar_2','category_sidebar_3','category_sidebar_4',
+    'video_inline','guidebook_footer'
+  )),
   image_url text not null,
   link_url text not null,
   alt_text text,
@@ -164,3 +169,24 @@ end;
 $$;
 
 grant execute on function increment_site_visits() to anon, authenticated;
+
+-- ─────────────────────────────────────────────
+-- increment_category_clicks: bumps categories.click_count, used to reorder
+-- the left-hand category menu in the 3-panel app
+-- ─────────────────────────────────────────────
+create or replace function increment_category_clicks(p_slug text)
+returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  new_count bigint;
+begin
+  update categories set click_count = click_count + 1 where slug = p_slug
+  returning click_count into new_count;
+  return new_count;
+end;
+$$;
+
+grant execute on function increment_category_clicks(text) to anon, authenticated;
