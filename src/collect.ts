@@ -50,7 +50,9 @@ async function collectCategory(
   //    and to know which old videos need to be dropped from the category.
   const { data: existingRows, error: existingErr } = await supabase
     .from("videos")
-    .select("youtube_id, title, description, summary, summary_points, transcript_lang")
+    .select(
+      "youtube_id, title, description, summary, summary_points, hook, tool_features, difficulty, takeaway, transcript_lang",
+    )
     .eq("category_id", category.id);
   if (existingErr) throw existingErr;
 
@@ -62,14 +64,24 @@ async function collectCategory(
   for (let i = 0; i < top.length; i++) {
     const video = top[i];
     const existing = existingByYoutubeId.get(video.youtube_id);
-    const unchanged =
+    const sameContent =
       existing && existing.title === video.title && existing.description === video.description;
+    // A prior run may have saved a truncated/raw JSON blob into `summary` (see
+    // summarize.ts fix) — detect and force a re-summarize even if title/description
+    // didn't change, so old broken rows self-heal on the next run.
+    const isCorrupted = Boolean(existing?.summary && existing.summary.trim().startsWith("{"));
+    const unchanged = sameContent && !isCorrupted;
 
     let summary = existing?.summary ?? "";
     let summaryPoints = existing?.summary_points ?? [];
+    let hook = existing?.hook ?? "";
+    let toolFeatures = existing?.tool_features ?? [];
+    let difficulty = existing?.difficulty ?? "";
+    let takeaway = existing?.takeaway ?? "";
     let transcriptLang = existing?.transcript_lang ?? null;
 
     if (!unchanged) {
+      if (isCorrupted) console.log(`  깨진 요약 감지, 재요약: ${video.title}`);
       const transcript = await fetchTranscript(video.youtube_id);
       try {
         const result = await summarizeVideo({
@@ -79,6 +91,10 @@ async function collectCategory(
         });
         summary = result.summary;
         summaryPoints = result.summary_points;
+        hook = result.hook;
+        toolFeatures = result.tool_features;
+        difficulty = result.difficulty;
+        takeaway = result.takeaway;
         transcriptLang = transcript?.lang ?? null;
       } catch (err) {
         console.error(`  요약 실패 (${video.youtube_id}):`, err);
@@ -99,6 +115,10 @@ async function collectCategory(
       duration_seconds: video.duration_seconds,
       summary,
       summary_points: summaryPoints,
+      hook,
+      tool_features: toolFeatures,
+      difficulty,
+      takeaway,
       transcript_lang: transcriptLang,
       rank: i + 1,
       status: "published" as const,

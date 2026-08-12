@@ -35,7 +35,11 @@ create table if not exists videos (
   like_count bigint default 0,
   duration_seconds int,
   summary text,                 -- AI-generated summary (Claude)
-  summary_points text[],        -- bullet-point takeaways
+  summary_points text[],        -- bullet-point takeaways (aka "key steps")
+  hook text,                    -- one-line attention-grabbing teaser
+  tool_features text[],         -- AI tool features/capabilities mentioned in the video
+  difficulty text,              -- 입문 | 초급 | 중급 | 고급
+  takeaway text,                -- one-line closing takeaway
   transcript_lang text,         -- language of transcript used for summary, if any
   rank int,                     -- 1..10 position within its category
   status text not null default 'published' check (status in ('published','pending','excluded')),
@@ -127,3 +131,36 @@ create policy "public read published videos" on videos for select using (status 
 create policy "public read published guidebook" on guidebook_sections for select using (is_published = true);
 create policy "public read active ads" on ads for select using (is_active = true);
 -- excluded_videos has no public policy: only service_role (which bypasses RLS) can read/write it.
+
+-- ─────────────────────────────────────────────
+-- site_visits: single-row visit counter, incremented via RPC from the (anon-key) site
+-- ─────────────────────────────────────────────
+create table if not exists site_visits (
+  id smallint primary key default 1,
+  count bigint not null default 0,
+  updated_at timestamptz not null default now(),
+  constraint site_visits_singleton check (id = 1)
+);
+
+insert into site_visits (id, count) values (1, 0) on conflict (id) do nothing;
+
+alter table site_visits enable row level security;
+create policy "public read site_visits" on site_visits for select using (true);
+-- No insert/update policy: writes only happen via the SECURITY DEFINER function below.
+
+create or replace function increment_site_visits()
+returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  new_count bigint;
+begin
+  update site_visits set count = count + 1, updated_at = now() where id = 1
+  returning count into new_count;
+  return new_count;
+end;
+$$;
+
+grant execute on function increment_site_visits() to anon, authenticated;
