@@ -70,7 +70,11 @@ async function collectCategory(
     // summarize.ts fix) — detect and force a re-summarize even if title/description
     // didn't change, so old broken rows self-heal on the next run.
     const isCorrupted = Boolean(existing?.summary && existing.summary.trim().startsWith("{"));
-    const unchanged = sameContent && !isCorrupted;
+    // Rows summarized before hook/tool_features/difficulty/takeaway existed in the
+    // prompt look "unchanged" by title/description alone and would otherwise never
+    // get backfilled — force a re-summarize for those too.
+    const missingNewFields = Boolean(existing) && !existing?.hook;
+    const unchanged = sameContent && !isCorrupted && !missingNewFields;
 
     let summary = existing?.summary ?? "";
     let summaryPoints = existing?.summary_points ?? [];
