@@ -15,6 +15,7 @@ create table if not exists categories (
   is_trend boolean not null default false, -- true only for the trend category
   sort_order int not null default 0,
   click_count bigint not null default 0, -- drives left-menu ordering in the 3-panel app
+  target_video_count int not null default 10, -- collector's per-category top-N cutoff
   icon_url text,
   created_at timestamptz not null default now()
 );

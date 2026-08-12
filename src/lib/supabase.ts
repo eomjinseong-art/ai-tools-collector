@@ -18,4 +18,5 @@ export type Category = {
   name: string;
   search_keywords: string[];
   is_trend: boolean;
+  target_video_count: number;
 };

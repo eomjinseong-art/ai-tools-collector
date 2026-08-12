@@ -4,7 +4,6 @@ import { searchVideos, fetchVideoDetails, type VideoDetails } from "./lib/youtub
 import { fetchTranscript } from "./lib/transcript.js";
 import { summarizeVideo } from "./lib/summarize.js";
 
-const VIDEOS_PER_CATEGORY = 10;
 const MIN_DURATION_SECONDS = 60; // skip Shorts / low-effort clips
 
 /** Simple "hot" ranking: popular AND recent beats either alone. */
@@ -42,8 +41,8 @@ async function collectCategory(
     (v) => v.duration_seconds >= MIN_DURATION_SECONDS,
   );
 
-  // 3) rank, take top N
-  const top = [...details].sort((a, b) => rankScore(b) - rankScore(a)).slice(0, VIDEOS_PER_CATEGORY);
+  // 3) rank, take top N (per-category cutoff — niche categories may target fewer)
+  const top = [...details].sort((a, b) => rankScore(b) - rankScore(a)).slice(0, category.target_video_count);
   console.log(`  후보 ${details.length}개 중 상위 ${top.length}개 선정`);
 
   // 4) load existing rows for this category to skip re-summarizing unchanged videos
@@ -156,7 +155,7 @@ async function collectCategory(
 async function main() {
   const { data: categories, error: catErr } = await supabase
     .from("categories")
-    .select("id, slug, name, search_keywords, is_trend")
+    .select("id, slug, name, search_keywords, is_trend, target_video_count")
     .order("sort_order");
   if (catErr) throw catErr;
   if (!categories || categories.length === 0) {

@@ -9,8 +9,9 @@ function apiKey(): string {
 export type SearchResultId = { videoId: string };
 
 /**
- * search.list — 100 quota units per call. Keep keyword lists per category short (3-4)
- * since 20 categories × ~4 keywords ≈ 7,000-8,000 units/day against the default
+ * search.list — 100 quota units per call. Keep keyword lists per category short
+ * (3-4 for the original 20, 2 for the smaller batch-2 categories) since 30
+ * categories' keyword lists sum to ~80 ≈ 8,000 units/day against the default
  * 10,000/day project quota. Raise Google Cloud quota before adding more keywords.
  */
 export async function searchVideos(keyword: string, maxResults = 15): Promise<SearchResultId[]> {
