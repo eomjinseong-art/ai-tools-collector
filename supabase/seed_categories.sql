@@ -11,7 +11,7 @@ insert into categories (slug, name, description, search_keywords, is_trend, sort
   ('midjourney',  '미드저니',    'AI 이미지 생성',                              array['미드저니 사용법','Midjourney 프롬프트','미드저니 강의'], false, 7),
   ('runway',      '런웨이',      'AI 영상 생성·편집',                           array['런웨이 사용법','Runway AI 영상','런웨이 ML 활용'], false, 8),
   ('higgsfield',  '힉스필드',    'AI 영상·이미지 생성 플랫폼',                  array['힉스필드 사용법','Higgsfield AI 활용'], false, 9),
-  ('sora',        '소라',        'OpenAI의 AI 영상 생성 모델',                  array['소라 사용법','Sora AI 영상','소라 활용법'], false, 10),
+  ('seedance',    '씨댄스',      '바이트댄스의 AI 영상 생성 모델',              array['씨댄스 사용법','Seedance AI 영상','씨댄스 활용법'], false, 10),
   ('kling',       '클링',        '고품질 AI 영상 생성 모델',                    array['클링 AI 사용법','Kling AI 활용','클링 AI 영상 생성'], false, 11),
   ('capcut',      '캡컷',        'AI 영상 편집 앱',                             array['캡컷 사용법','캡컷 편집 강의','캡컷 AI 기능'], false, 12),
   ('vrew',        '브루',        'AI 자동 자막·영상 편집 툴',                   array['브루 사용법','Vrew 사용법','브루 편집 강의'], false, 13),
